@@ -24,9 +24,9 @@ const seed = () => ({
     fromProgram(PROGRAMS[2], { repeat: 'once', due: addDays(3), note: 'Покажи лодочку и корзиночку на фото.' }),
   ],
   schedule: [
-    { id: uid(), type: 'training', title: 'Тренировка', place: 'Зал', weekday: 1, time: '17:00', end: '18:00' },
-    { id: uid(), type: 'training', title: 'Тренировка', place: 'Зал', weekday: 3, time: '17:00', end: '18:00' },
-    { id: uid(), type: 'training', title: 'Хореография', place: 'Зал', weekday: 5, time: '16:30', end: '17:30' },
+    { id: uid(), type: 'training', kind: 'main', emoji: '🤸‍♀️', color: '#5ac8fa', repeat: 'weekly', title: 'Тренировка', place: 'Зал', weekday: 1, time: '17:00', end: '18:00' },
+    { id: uid(), type: 'training', kind: 'main', emoji: '🤸‍♀️', color: '#5ac8fa', repeat: 'weekly', title: 'Тренировка', place: 'Зал', weekday: 3, time: '17:00', end: '18:00' },
+    { id: uid(), type: 'training', kind: 'choreo', emoji: '🩰', color: '#ff7eb6', repeat: 'weekly', title: 'Хореография', place: 'Зал', weekday: 5, time: '16:30', end: '17:30' },
     { id: uid(), type: 'competition', title: 'Первенство «Весенние звёздочки»', place: 'Дворец спорта', date: addDays(30), time: '10:00', note: 'Купальник, чешки, лак для волос' },
   ],
   lists: {
@@ -39,6 +39,7 @@ const seed = () => ({
     ],
   },
   teachers: [],
+  customKinds: [], // свои виды тренировок {id, title, emoji, color}
   stars: 0,
   badges: {},
   reports: [], // {id, hwId, title, date, photoId, shared}
@@ -64,6 +65,9 @@ function reducer(s, a) {
       return { ...s, schedule: exists ? s.schedule.map((e) => e.id === a.item.id ? a.item : e) : [...s.schedule, a.item] };
     }
     case 'sched:del': return { ...s, schedule: s.schedule.filter((e) => e.id !== a.id) };
+    case 'sched:many': return { ...s, schedule: [...s.schedule.filter((e) => !a.items.some((x) => x.id === e.id)), ...a.items] };
+    case 'kind:add': return { ...s, customKinds: [...s.customKinds.filter((k) => k.title !== a.kind.title), a.kind] };
+    case 'kind:del': return { ...s, customKinds: s.customKinds.filter((k) => k.id !== a.id) };
     case 'list:add': return { ...s, lists: { ...s.lists, [a.list]: [...s.lists[a.list], { id: uid(), text: a.text, done: false }] } };
     case 'list:toggle': return { ...s, lists: { ...s.lists, [a.list]: s.lists[a.list].map((i) => i.id === a.id ? { ...i, done: !i.done } : i) } };
     case 'list:del': return { ...s, lists: { ...s.lists, [a.list]: s.lists[a.list].filter((i) => i.id !== a.id) } };

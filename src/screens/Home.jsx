@@ -98,7 +98,7 @@ export default function Home({ go, startHw, openProfile }) {
       <div className="list glass">
         {next && (
           <div className="list-row">
-            <span className="tile-ico" style={{ background: 'linear-gradient(135deg,#8fd9ff,#5ac8fa)' }}>🤸‍♀️</span>
+            <span className="tile-ico" style={{ background: `${next.color || '#5ac8fa'}40` }}>{next.emoji || '🤸‍♀️'}</span>
             <div className="grow"><b>{next.title}</b><small>{next.label} · {next.time}–{next.end} · {next.place}</small></div>
           </div>
         )}

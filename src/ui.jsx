@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const paths = {
   home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
@@ -35,7 +36,7 @@ export function Sheet({ open, onClose, title, children, action }) {
   const [shown, setShown] = useState(open);
   useEffect(() => { if (open) setShown(true); else { const t = setTimeout(() => setShown(false), 320); return () => clearTimeout(t); } }, [open]);
   if (!shown) return null;
-  return (
+  return createPortal(
     <div className={`sheet-wrap ${open ? 'in' : 'out'}`} onClick={onClose}>
       <div className="sheet glass" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title}>
         <div className="grabber" />
@@ -46,7 +47,8 @@ export function Sheet({ open, onClose, title, children, action }) {
         </div>
         <div className="sheet-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -127,3 +129,71 @@ export function Empty({ emoji, title, text }) {
 }
 
 export function haptic(ms = 8) { try { navigator.vibrate?.(ms); } catch { /* noop */ } }
+
+// Строка со смахиванием влево для удаления (как в iOS):
+// короткий свайп — открывает кнопку «Удалить», длинный — удаляет сразу.
+const REVEAL = 92;
+export function SwipeRow({ onDelete, children, label = 'Удалить' }) {
+  const [dx, setDx] = useState(0);
+  const [drag, setDrag] = useState(false);
+  const [gone, setGone] = useState(false);
+  const st = useRef(null);
+  const moved = useRef(false);
+  const box = useRef();
+
+  const commit = () => {
+    haptic(20);
+    setDx(-(box.current?.offsetWidth || 400));
+    setTimeout(() => setGone(true), 180);
+    setTimeout(() => onDelete(), 420);
+  };
+  const down = (e) => { st.current = { x: e.clientX, y: e.clientY, base: dx, lock: null, id: e.pointerId }; moved.current = false; };
+  const move = (e) => {
+    const s = st.current; if (!s) return;
+    const mx = e.clientX - s.x, my = e.clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(my)) { s.lock = 'x'; setDrag(true); e.currentTarget.setPointerCapture?.(s.id); }
+      else if (Math.abs(my) > 8) { s.lock = 'y'; }
+    }
+    if (s.lock !== 'x') return;
+    moved.current = true;
+    let v = s.base + mx;
+    if (v > 0) v = v / 4; // резинка вправо
+    setDx(v);
+  };
+  const up = () => {
+    const s = st.current; st.current = null; if (!s || s.lock !== 'x') return;
+    setDrag(false);
+    const w = box.current?.offsetWidth || 360;
+    if (dx < -w * 0.5) commit();
+    else if (dx < -REVEAL / 2) { setDx(-REVEAL); haptic(6); }
+    else setDx(0);
+  };
+  const clickCapture = (e) => {
+    if (moved.current) { e.preventDefault(); e.stopPropagation(); moved.current = false; return; }
+    if (dx !== 0) { e.preventDefault(); e.stopPropagation(); setDx(0); }
+  };
+  const open = -dx;
+  return (
+    <div className={`swipe ${gone ? 'gone' : ''}`}>
+      <div className="swipe-inner" ref={box}>
+        <button className={`swipe-del ${open > (box.current?.offsetWidth || 360) * 0.5 ? 'armed' : ''}`} style={{ width: Math.max(0, open) }} onClick={commit} aria-label={label} tabIndex={open > 0 ? 0 : -1}>
+          <span><Icon name="trash" size={20} /><small>{label}</small></span>
+        </button>
+        <div className="swipe-content" style={{ transform: `translateX(${dx}px)`, transition: drag ? 'none' : 'transform .38s cubic-bezier(.2,.9,.25,1)' }}
+          onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onClickCapture={clickCapture}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function UndoBar({ text, onUndo }) {
+  return (
+    <div className="undo glass" role="status">
+      <span>{text}</span>
+      <button onClick={onUndo}>Отменить</button>
+    </div>
+  );
+}
